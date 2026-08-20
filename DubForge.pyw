@@ -428,33 +428,55 @@ class App(tk.Tk):
             s.theme_use("clam")
         except Exception:
             pass
-        s.configure(".", background=BG, foreground=FG, fieldbackground=BG2,
+
+        # Nicht jede Tk-Fassung kennt jede Farboption. Ein unbekannter Name
+        # wuerde sonst beim Start eine Ausnahme werfen - fuer reine Optik ist
+        # das zu teuer. Schlaegt eine Zeile fehl, bleibt es bei der Vorgabe.
+        def cfg(style, **kw):
+            try:
+                s.configure(style, **kw)
+            except Exception:
+                pass
+
+        def mp(style, **kw):
+            try:
+                s.map(style, **kw)
+            except Exception:
+                pass
+
+        cfg(".", background=BG, foreground=FG, fieldbackground=BG2,
                     bordercolor="#3a3d4d", lightcolor=BG2, darkcolor=BG2)
-        s.configure("TFrame", background=BG)
-        s.configure("Card.TFrame", background=BG2)
-        s.configure("TLabel", background=BG, foreground=FG)
-        s.configure("Card.TLabel", background=BG2, foreground=FG)
-        s.configure("Head.TLabel", background=BG, foreground=ACC2,
+        cfg("TFrame", background=BG)
+        cfg("Card.TFrame", background=BG2)
+        cfg("TLabel", background=BG, foreground=FG)
+        cfg("Card.TLabel", background=BG2, foreground=FG)
+        cfg("Head.TLabel", background=BG, foreground=ACC2,
                     font=("Segoe UI Semibold", 11))
-        s.configure("Dim.TLabel", background=BG, foreground="#9aa0b5")
-        s.configure("TButton", background="#3a3d4d", foreground=FG, padding=6,
+        cfg("Dim.TLabel", background=BG, foreground="#9aa0b5")
+        cfg("TButton", background="#3a3d4d", foreground=FG, padding=6,
                     borderwidth=0)
-        s.map("TButton", background=[("active", "#4a4e63")])
-        s.configure("Accent.TButton", background=ACC, foreground="#ffffff",
+        mp("TButton", background=[("active", "#4a4e63")])
+        cfg("Accent.TButton", background=ACC, foreground="#ffffff",
                     padding=8, font=("Segoe UI Semibold", 10))
-        s.map("Accent.TButton", background=[("active", "#9078ff")])
-        s.configure("Go.TButton", background=ACC2, foreground="#0d2b20",
+        mp("Accent.TButton", background=[("active", "#9078ff")])
+        cfg("Go.TButton", background=ACC2, foreground="#0d2b20",
                     padding=8, font=("Segoe UI Semibold", 10))
-        s.map("Go.TButton", background=[("active", "#5ee7ae")])
-        s.configure("TEntry", fieldbackground=BG2, foreground=FG,
+        mp("Go.TButton", background=[("active", "#5ee7ae")])
+        cfg("TEntry", fieldbackground=BG2, foreground=FG,
                     insertcolor=FG, padding=4)
+        # "readonly" und "disabled" haben eigene Farben, die configure()
+        # nicht erreicht - sonst wird das Feld hell und der Text unsichtbar.
+        mp("TEntry",
+              fieldbackground=[("readonly", BG2), ("disabled", BG)],
+              foreground=[("readonly", "#9aa0b5"), ("disabled", "#7a7f96")],
+              bordercolor=[("focus", ACC)])
         # Comboboxen: der Zustand "readonly" hat eigene Farben, die
         # configure() nicht erreicht - deshalb zusaetzlich map().
-        s.configure("TCombobox", fieldbackground=BG2, background=BG2,
+        cfg("TCombobox", fieldbackground=BG2, background=BG2,
                     foreground=FG, arrowcolor=FG, bordercolor="#3a3d4d",
                     lightcolor=BG2, darkcolor=BG2, padding=4,
                     selectbackground=BG2, selectforeground=FG)
-        s.map("TCombobox",
+        mp("TCombobox",
               fieldbackground=[("readonly", BG2), ("disabled", BG)],
               background=[("readonly", BG2), ("active", BG2)],
               foreground=[("readonly", FG), ("disabled", "#7a7f96")],
@@ -468,35 +490,70 @@ class App(tk.Tk):
         self.option_add("*TCombobox*Listbox.selectBackground", ACC)
         self.option_add("*TCombobox*Listbox.selectForeground", "#ffffff")
         self.option_add("*TCombobox*Listbox.borderWidth", 0)
-        s.configure("TCheckbutton", background=BG, foreground=FG)
-        s.configure("TRadiobutton", background=BG, foreground=FG)
-        s.configure("Treeview", background=BG2, fieldbackground=BG2,
+        # Kaestchen und Punkte: clam faerbt sie beim Ueberfahren hell ein,
+        # dann steht dunkler Text auf weissem Grund. Alle Zustaende setzen.
+        for kind in ("TCheckbutton", "TRadiobutton"):
+            cfg(kind, background=BG, foreground=FG,
+                indicatorbackground=BG2, indicatorforeground=FG,
+                focuscolor=BG, padding=2)
+            mp(kind,
+               background=[("active", BG), ("pressed", BG)],
+               foreground=[("disabled", "#7a7f96"), ("active", FG)],
+               indicatorbackground=[("selected", ACC), ("pressed", ACC),
+                                    ("active", "#3a3d4d"),
+                                    ("disabled", BG2)],
+               indicatorforeground=[("selected", "#ffffff"),
+                                    ("disabled", "#7a7f96")])
+        cfg("Treeview", background=BG2, fieldbackground=BG2,
                     foreground=FG, rowheight=24, borderwidth=0)
-        s.configure("Treeview.Heading", background="#343747", foreground=FG,
-                    font=("Segoe UI Semibold", 9))
-        s.map("Treeview", background=[("selected", ACC)])
-        s.configure("TProgressbar", background=ACC2, troughcolor=BG2,
+        cfg("Treeview.Heading", background="#343747", foreground=FG,
+                    relief="flat", font=("Segoe UI Semibold", 9))
+        # Spaltenkopf wird beim Ueberfahren sonst weiss.
+        mp("Treeview.Heading",
+              background=[("active", "#404560"), ("pressed", "#4a5070")],
+              foreground=[("active", FG), ("pressed", FG)],
+              relief=[("active", "flat"), ("pressed", "flat")])
+        mp("Treeview",
+              background=[("selected", ACC)],
+              foreground=[("selected", "#ffffff")])
+        cfg("TProgressbar", background=ACC2, troughcolor=BG2,
                     borderwidth=0)
-        s.configure("Ban.TFrame", background=BAN)
-        s.configure("Ban.TLabel", background=BAN, foreground=FG)
-        s.configure("BanHead.TLabel", background=BAN, foreground="#ffffff",
+        cfg("Ban.TFrame", background=BAN)
+        cfg("Ban.TLabel", background=BAN, foreground=FG)
+        cfg("BanHead.TLabel", background=BAN, foreground="#ffffff",
                     font=("Segoe UI Semibold", 11))
-        s.configure("BanDim.TLabel", background=BAN, foreground="#b6b1dc")
-        s.configure("Ban.TButton", background="#4b4590", foreground=FG,
+        cfg("BanDim.TLabel", background=BAN, foreground="#b6b1dc")
+        cfg("Ban.TButton", background="#4b4590", foreground=FG,
                     padding=6, borderwidth=0)
-        s.map("Ban.TButton", background=[("active", "#5d56ad")])
-        s.configure("Vertical.TScrollbar", background="#3a3d4d",
+        mp("Ban.TButton", background=[("active", "#5d56ad")])
+        cfg("Vertical.TScrollbar", background="#3a3d4d",
                     troughcolor=BG2, bordercolor=BG2, arrowcolor=FG,
                     darkcolor=BG2, lightcolor=BG2, borderwidth=0)
-        s.map("Vertical.TScrollbar", background=[("active", "#4a4e63")])
-        s.configure("Horizontal.TScrollbar", background="#3a3d4d",
+        mp("Vertical.TScrollbar", background=[("active", "#4a4e63")])
+        cfg("Horizontal.TScrollbar", background="#3a3d4d",
                     troughcolor=BG2, bordercolor=BG2, arrowcolor=FG,
                     darkcolor=BG2, lightcolor=BG2, borderwidth=0)
-        s.map("Horizontal.TScrollbar", background=[("active", "#4a4e63")])
-        s.configure("TLabelframe", background=BG, foreground=ACC2)
-        s.configure("TLabelframe.Label", background=BG, foreground=ACC2,
+        mp("Horizontal.TScrollbar", background=[("active", "#4a4e63")])
+        cfg("TLabelframe", background=BG, foreground=ACC2)
+        cfg("TLabelframe.Label", background=BG, foreground=ACC2,
                     font=("Segoe UI Semibold", 10))
-        s.configure("TScale", background=BG)
+        # Schieberegler: der Griff kommt aus "background", der beim
+        # Ueberfahren ebenfalls hell werden wuerde.
+        cfg("TScale", background="#4a4e63", troughcolor=BG2,
+                    bordercolor="#3a3d4d", lightcolor="#4a4e63",
+                    darkcolor="#4a4e63")
+        mp("TScale",
+              background=[("active", ACC), ("pressed", ACC)],
+              lightcolor=[("active", ACC)], darkcolor=[("active", ACC)])
+
+        cfg("TSpinbox", fieldbackground=BG2, background=BG2,
+                    foreground=FG, arrowcolor=FG, bordercolor="#3a3d4d",
+                    lightcolor=BG2, darkcolor=BG2, insertcolor=FG, padding=3)
+        mp("TSpinbox",
+              fieldbackground=[("readonly", BG2), ("disabled", BG)],
+              background=[("active", BG2), ("readonly", BG2)],
+              foreground=[("disabled", "#7a7f96")],
+              arrowcolor=[("active", ACC2), ("disabled", "#7a7f96")])
 
     def _build_ui(self):
         self.title(t("title"))
@@ -1841,9 +1898,14 @@ class App(tk.Tk):
         save_cfg(self.cfg)
 
     def _on_close(self):
-        self._save_cfg()
-        self._stop_play()
-        shutil.rmtree(self.work, ignore_errors=True)
+        # Aufraeumen darf das Beenden nicht verhindern: beim Update wartet
+        # ein Skript darauf, dass dieser Prozess wirklich verschwindet.
+        for step in (self._save_cfg, self._stop_play,
+                     lambda: shutil.rmtree(self.work, ignore_errors=True)):
+            try:
+                step()
+            except Exception:
+                pass
         self.destroy()
 
 

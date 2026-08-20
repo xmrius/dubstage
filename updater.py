@@ -35,7 +35,7 @@ from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 # ------------------------------------------------------------------ Eckdaten
-VERSION = "1.2.0"
+VERSION = "1.2.1"
 REPO = "xmrius/dubstage"
 
 API_LATEST = "https://api.github.com/repos/%s/releases/latest" % REPO
@@ -362,7 +362,11 @@ def apply(staged_root, app_dir, which="DubForge", tag=""):
                  newline="\r\n") as f:
         f.write(text)
 
-    flags = 0x00000008 | 0x00000200          # DETACHED | NEW_PROCESS_GROUP
+    # CREATE_NO_WINDOW, nicht DETACHED_PROCESS: bei DETACHED hat der Prozess
+    # gar keine Konsole, und tasklist/find machen sich dann jeweils eine
+    # eigene auf - sichtbar. CREATE_NO_WINDOW gibt ihm eine unsichtbare,
+    # die die Kindprozesse erben.
+    flags = 0x08000000 | 0x00000200      # CREATE_NO_WINDOW | NEW_PROCESS_GROUP
     subprocess.Popen([os.environ.get("COMSPEC", "cmd.exe"), "/c", bat],
                      cwd=tmp, close_fds=True, creationflags=flags)
     return log

@@ -9,6 +9,36 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 Nothing yet.
 
+## [1.2.1] - 2026-08-20
+
+### Fixed
+
+- **Hovering turned controls white and swallowed their text.** Radio buttons,
+  checkboxes and the column headers of the clip list all took their hover
+  colours from a ttk state table that `configure()` cannot reach — the same trap
+  the dropdowns fell into earlier. All of them are now set through `map()`,
+  along with the slider, the spinbox, and read-only entry fields, which had the
+  same problem when the URL field is switched off in file mode.
+- The whole styling block now tolerates colour options an older Tk does not
+  know: a rejected line falls back to the default instead of stopping the
+  program from starting.
+
+- **A console window appeared during an update and stayed.** The swap script was
+  started with `DETACHED_PROCESS`, which leaves the process without a console —
+  so `tasklist`, `find` and `ping` each opened one of their own. Now started
+  with `CREATE_NO_WINDOW`, which hands it an invisible console that the child
+  processes inherit.
+- **A failure while closing could block the update.** The swap script waits for
+  the application to disappear before touching any files, and gives up after 60
+  seconds. If saving the settings or cleaning the temporary folder raised on the
+  way out, the window closed but the process stayed, and the update quietly did
+  nothing. Both tools now treat every cleanup step as optional and always reach
+  the actual shutdown.
+
+Note that the fix only takes effect from the *next* update onwards: the script
+that performs a swap always comes from the version being replaced, not from the
+one being installed.
+
 ## [1.2.0] - 2026-08-20
 
 ### Added
@@ -202,7 +232,8 @@ switchable at runtime.
   clip lengths it lands one sample short, which previously raised mid-playback
   and froze the interface.
 
-[Unreleased]: https://github.com/xmrius/dubstage/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/xmrius/dubstage/compare/v1.2.1...HEAD
+[1.2.1]: https://github.com/xmrius/dubstage/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/xmrius/dubstage/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/xmrius/dubstage/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/xmrius/dubstage/compare/v1.0.0...v1.0.1

@@ -1663,8 +1663,12 @@ class Game(tk.Tk):
         self.after(60, self._pump)
 
     def _on_close(self):
-        self._stop_audio()
-        save_cfg(self.cfg)
+        # Siehe DubForge: beim Update haengt ein Skript am Prozessende.
+        for step in (self._stop_audio, lambda: save_cfg(self.cfg)):
+            try:
+                step()
+            except Exception:
+                pass
         self.destroy()
 
 
