@@ -241,6 +241,41 @@ T = {
     "type_dub":     ("Dub-Pack", "Dub pack"),
     "type_voice":   ("Clip-Pack", "Clip pack"),
 
+    # --- Zielformat
+    "fmt_label":    ("Zielformat:", "Target format:"),
+    "fmt_ds":       ("DubStage", "DubStage"),
+    "fmt_cv":       ("The Choicer Voicer", "The Choicer Voicer"),
+    "fmt_hint_ds":  ("Zeitstempel im Dateinamen, Untertitel in _captions.json, "
+                     "Video als MP4.",
+                     "Timestamp in the file name, subtitles in _captions.json, "
+                     "video as MP4."),
+    "fmt_hint_cv":  ("Eine .txt je Sprechzeile, Bild je Figur, _pack_info.ini, "
+                     "Video als OGV.",
+                     "One .txt per line, one image per character, "
+                     "_pack_info.ini, video as OGV."),
+    "col_char":     ("Figur", "Character"),
+    "character":    ("Figur:", "Character:"),
+    "char_hint":    ("Name des Sprechers - bestimmt Dateinamen und Bild",
+                     "Name of the speaker - drives file name and image"),
+    "btn_frame":    ("Bild aus Szene", "Grab image"),
+    "frame_none":   ("Erst einen Clip waehlen und eine Figur eintragen.",
+                     "Select a clip and enter a character first."),
+    "frame_ok":     ("Bild fuer %s aus Sekunde %.1f gesetzt.",
+                     "Image for %s taken at second %.1f."),
+    "frame_icon":   ("Pack-Symbol aus Sekunde %.1f gesetzt.",
+                     "Pack icon taken at second %.1f."),
+    "btn_icon":     ("Symbol aus Szene", "Grab icon"),
+    "pack_title":   ("Titel im Spiel:", "Title in game:"),
+    "pack_authors": ("Autoren:", "Authors:"),
+    "authors_hint": ("mehrere mit Komma trennen", "separate several with commas"),
+    "pack_readme":  ("Beschreibung:", "Description:"),
+    "chars_found":  ("Figuren: %s", "Characters: %s"),
+    "chars_none":   ("noch keine Figuren vergeben", "no characters assigned yet"),
+    "cv_nochar":    ("Fuer das Choicer-Voicer-Format braucht jeder Clip eine "
+                     "Figur. Ohne Angabe wird der Clipname genommen.",
+                     "The Choicer Voicer format needs a character per clip. "
+                     "Without one the clip name is used."),
+
     # --- Update
     "upd_head":     ("Version %s ist da", "Version %s is out"),
     "upd_sub":      ("Du hast %s", "You have %s"),
@@ -341,6 +376,10 @@ class App(tk.Tk):
         self.upd_busy = False
         self.upd_dismissed = False
 
+        # Choicer-Voicer-Profil: Bilder je Figur, Symbol des Packs
+        self.char_images = {}       # {"Woody": "C:/.../woody.png"}
+        self.pack_icon = None
+
         self.view_a = 0.0
         self.view_b = 1.0
         self._drag = None
@@ -376,6 +415,11 @@ class App(tk.Tk):
         self.vheight = tk.StringVar(value=c.get("vheight", "720"))
         self.target_dir = tk.StringVar(value=c.get("target_dir", ""))
         self.caption_var = tk.StringVar(value="")
+        self.fmt = tk.StringVar(value=c.get("fmt", "dubstage"))
+        self.char_var = tk.StringVar(value="")
+        self.pack_title = tk.StringVar(value=c.get("pack_title", ""))
+        self.pack_authors = tk.StringVar(value=c.get("pack_authors", ""))
+        self.pack_readme = tk.StringVar(value=c.get("pack_readme", ""))
 
     # ------------------------------------------------------------------ UI
     def _build_style(self):
@@ -456,6 +500,7 @@ class App(tk.Tk):
 
     def _build_ui(self):
         self.title(t("title"))
+        cvmode = self.fmt.get() == "cv"
 
         # Der Inhalt liegt in einem Canvas mit Scrollbalken. Ohne das war
         # Schritt 3 bei nicht maximiertem Fenster schlicht nicht erreichbar.
@@ -500,6 +545,20 @@ class App(tk.Tk):
         self.lang_box.bind("<<ComboboxSelected>>", self._change_lang)
         ttk.Label(top, text=t("lang_label"),
                   style="Dim.TLabel").pack(side="right", padx=(0, 6))
+
+        # ---------------- Zielformat
+        fmt_row = ttk.Frame(root)
+        fmt_row.pack(fill="x", pady=(10, 0))
+        ttk.Label(fmt_row, text=t("fmt_label"),
+                  style="Head.TLabel").pack(side="left")
+        for val, key in (("dubstage", "fmt_ds"), ("cv", "fmt_cv")):
+            ttk.Radiobutton(fmt_row, text=t(key), value=val,
+                            variable=self.fmt,
+                            command=self._change_fmt).pack(side="left",
+                                                           padx=(14, 0))
+        ttk.Label(fmt_row,
+                  text=t("fmt_hint_cv") if cvmode else t("fmt_hint_ds"),
+                  style="Dim.TLabel").pack(side="left", padx=(18, 0))
 
         # ---------------- Schritt 1: Quelle
         step1 = ttk.LabelFrame(root, text=t("s1"), padding=10)
@@ -576,14 +635,18 @@ class App(tk.Tk):
         mid = ttk.Frame(step2)
         mid.pack(fill="both", expand=True, pady=(8, 0))
 
-        cols = ("nr", "name", "start", "end", "len", "caption")
+        spec = [("nr", "col_nr", 40), ("name", "col_name", 170)]
+        if cvmode:
+            spec.append(("char", "col_char", 110))
+        spec += [("start", "col_start", 85), ("end", "col_end", 85),
+                 ("len", "col_len", 70), ("caption", "col_caption", 300)]
+        cols = tuple(s[0] for s in spec)
         self.tree = ttk.Treeview(mid, columns=cols, show="headings", height=9)
-        for c, key, w in (("nr", "col_nr", 40), ("name", "col_name", 190),
-                          ("start", "col_start", 85), ("end", "col_end", 85),
-                          ("len", "col_len", 70), ("caption", "col_caption", 320)):
+        for c, key, w in spec:
             self.tree.heading(c, text=t(key))
-            self.tree.column(c, width=w,
-                             anchor="w" if c in ("name", "caption") else "center")
+            self.tree.column(
+                c, width=w,
+                anchor="w" if c in ("name", "char", "caption") else "center")
         self.tree.pack(side="left", fill="both", expand=True)
         sb = ttk.Scrollbar(mid, orient="vertical", command=self.tree.yview)
         sb.pack(side="left", fill="y")
@@ -619,6 +682,25 @@ class App(tk.Tk):
         ttk.Label(cap, text=t("caption_hint"),
                   style="Dim.TLabel").pack(side="left")
 
+        # ---------------- Figur und Figurenbild (nur Choicer Voicer)
+        self.char_entry = None
+        self.char_thumb = None
+        if cvmode:
+            ch = ttk.Frame(step2)
+            ch.pack(fill="x", pady=(6, 0))
+            ttk.Label(ch, text=t("character")).pack(side="left")
+            self.char_entry = ttk.Entry(ch, textvariable=self.char_var,
+                                        width=20)
+            self.char_entry.pack(side="left", padx=6)
+            self.char_entry.bind("<Return>", lambda e: self._char_save())
+            self.char_entry.bind("<FocusOut>", lambda e: self._char_save())
+            ttk.Button(ch, text=t("btn_frame"),
+                       command=self._grab_char_image).pack(side="left")
+            self.char_thumb = tk.Label(ch, bg=BG, bd=0)
+            self.char_thumb.pack(side="left", padx=10)
+            ttk.Label(ch, text=t("char_hint"),
+                      style="Dim.TLabel").pack(side="left")
+
         # ---------------- Schritt 3: Bauen
         step3 = ttk.LabelFrame(root, text=t("s3"), padding=10)
         step3.pack(fill="x", pady=(10, 0))
@@ -641,6 +723,33 @@ class App(tk.Tk):
         ttk.Button(g, text=t("browse"), width=9,
                    command=self._pick_target).grid(row=1, column=4,
                                                    pady=(8, 0))
+        self.chars_lbl = None
+        if cvmode:
+            ttk.Label(g, text=t("pack_title")).grid(row=2, column=0, sticky="w",
+                                                    pady=(8, 0))
+            ttk.Entry(g, textvariable=self.pack_title).grid(
+                row=2, column=1, columnspan=3, sticky="we", padx=6, pady=(8, 0))
+            ttk.Button(g, text=t("btn_icon"),
+                       command=self._grab_pack_icon).grid(row=2, column=4,
+                                                          pady=(8, 0))
+
+            ttk.Label(g, text=t("pack_authors")).grid(row=3, column=0,
+                                                      sticky="w", pady=(8, 0))
+            ttk.Entry(g, textvariable=self.pack_authors, width=30).grid(
+                row=3, column=1, sticky="we", padx=6, pady=(8, 0))
+            ttk.Label(g, text=t("authors_hint"), style="Dim.TLabel").grid(
+                row=3, column=2, columnspan=2, sticky="w", pady=(8, 0))
+
+            ttk.Label(g, text=t("pack_readme")).grid(row=4, column=0,
+                                                     sticky="w", pady=(8, 0))
+            ttk.Entry(g, textvariable=self.pack_readme).grid(
+                row=4, column=1, columnspan=3, sticky="we", padx=6, pady=(8, 0))
+
+            self.chars_lbl = ttk.Label(g, text=t("chars_none"),
+                                       style="Dim.TLabel")
+            self.chars_lbl.grid(row=5, column=1, columnspan=3, sticky="w",
+                                padx=6, pady=(8, 0))
+
         g.columnconfigure(3, weight=1)
 
         act = ttk.Frame(step3)
@@ -863,10 +972,22 @@ class App(tk.Tk):
         code = "en" if self.lang_var.get().startswith("English") else "de"
         if code == LANG:
             return
-        keep = self.log.get("1.0", "end-1c")
         set_lang(code)
         self.cfg["lang"] = code
         save_cfg(self.cfg)
+        self._rebuild_ui()
+
+    def _change_fmt(self):
+        """Zielformat gewechselt - die Oberflaeche zeigt andere Felder."""
+        self._caption_save()
+        self._char_save()
+        self.cfg["fmt"] = self.fmt.get()
+        save_cfg(self.cfg)
+        self._rebuild_ui()
+
+    def _rebuild_ui(self):
+        """Oberflaeche neu aufbauen, Protokoll und Auswahl behalten."""
+        keep = self.log.get("1.0", "end-1c")
         self.ui_root.destroy()
         self._build_ui()
         if keep.strip():
@@ -874,6 +995,7 @@ class App(tk.Tk):
             self.log.see("end")
         self.refresh_list()
         self.draw_wave()
+        self._update_chars_label()
         self._set_busy(self.busy)
 
     # -------------------------------------------------------------- Helfer
@@ -1137,11 +1259,15 @@ class App(tk.Tk):
 
     # ---------------------------------------------------------- Clip-Liste
     def refresh_list(self):
+        cvmode = self.fmt.get() == "cv"
         self.tree.delete(*self.tree.get_children())
         for i, c in enumerate(self.clips):
-            self.tree.insert("", "end", iid=str(i), values=(
-                i + 1, c["name"], "%.3f" % c["start"], "%.3f" % c["end"],
-                "%.2f" % (c["end"] - c["start"]), c.get("caption", "")))
+            row = [i + 1, c["name"]]
+            if cvmode:
+                row.append(c.get("character", ""))
+            row += ["%.3f" % c["start"], "%.3f" % c["end"],
+                    "%.2f" % (c["end"] - c["start"]), c.get("caption", "")]
+            self.tree.insert("", "end", iid=str(i), values=tuple(row))
         if self.selected is not None and 0 <= self.selected < len(self.clips):
             self.tree.selection_set(str(self.selected))
             self.tree.see(str(self.selected))
@@ -1151,6 +1277,7 @@ class App(tk.Tk):
         sel = self.tree.selection()
         if sel:
             self._caption_save()          # noch mit der vorherigen Auswahl
+            self._char_save()
             self.selected = int(sel[0])
             self._load_caption()
             self.draw_wave()
@@ -1163,6 +1290,101 @@ class App(tk.Tk):
         if self.selected is not None and 0 <= self.selected < len(self.clips):
             c = self.clips[self.selected]
         self.caption_var.set((c or {}).get("caption", ""))
+        self.char_var.set((c or {}).get("character", ""))
+        self._show_thumb((c or {}).get("character", ""))
+
+    def _char_save(self):
+        """Figur des gewaehlten Clips uebernehmen."""
+        i = self._caption_for
+        if i is None or not (0 <= i < len(self.clips)):
+            return
+        new = self.char_var.get().strip()
+        if self.clips[i].get("character", "") != new:
+            self.clips[i]["character"] = new
+            try:
+                self.tree.set(str(i), "char", new)
+            except Exception:
+                pass
+        self._show_thumb(new)
+
+    def _show_thumb(self, character):
+        """Kleine Vorschau des Figurenbildes neben dem Eingabefeld."""
+        lbl = getattr(self, "char_thumb", None)
+        if lbl is None:
+            return
+        path = self.char_images.get((character or "").strip())
+        self._thumb_img = None
+        if not path or not os.path.isfile(path):
+            lbl.configure(image="", text="", width=0)
+            return
+        try:
+            from PIL import Image, ImageTk
+            im = Image.open(path)
+            im.thumbnail((84, 48))
+            self._thumb_img = ImageTk.PhotoImage(im)
+            lbl.configure(image=self._thumb_img, text="", width=0)
+        except Exception:
+            lbl.configure(image="", text=os.path.basename(path),
+                          fg="#9aa0b5", width=0)
+
+    def _grab_char_image(self):
+        """Einzelbild beim gewaehlten Clip holen und der Figur zuordnen."""
+        self._char_save()
+        i = self.selected
+        who = self.char_var.get().strip()
+        if i is None or not (0 <= i < len(self.clips)) or not who:
+            messagebox.showinfo(t("title"), t("frame_none"))
+            return
+        if not self.video_path or not os.path.isfile(self.video_path):
+            messagebox.showinfo(t("title"), t("frame_none"))
+            return
+        c = self.clips[i]
+        at = c["start"] + min(0.4, max(0.0, (c["end"] - c["start"]) / 2.0))
+        out = os.path.join(self.work, "char_%s.png" % pc.safe_name(who, "figur"))
+        try:
+            pc.grab_frame(self.video_path, at, out, log=self._log)
+        except Exception as ex:
+            messagebox.showerror(t("dlg_err"), "%s" % ex)
+            return
+        self.char_images[who] = out
+        self._show_thumb(who)
+        self._log(t("frame_ok", who, at))
+
+    def _grab_pack_icon(self):
+        """Einzelbild als Symbol des Packs setzen."""
+        i = self.selected
+        at = 0.0
+        if i is not None and 0 <= i < len(self.clips):
+            at = self.clips[i]["start"]
+        if not self.video_path or not os.path.isfile(self.video_path):
+            messagebox.showinfo(t("title"), t("frame_none"))
+            return
+        out = os.path.join(self.work, "pack_icon.png")
+        try:
+            pc.grab_frame(self.video_path, at, out, log=self._log)
+        except Exception as ex:
+            messagebox.showerror(t("dlg_err"), "%s" % ex)
+            return
+        self.pack_icon = out
+        self._log(t("frame_icon", at))
+        self._update_chars_label()
+
+    def _update_chars_label(self):
+        lbl = getattr(self, "chars_lbl", None)
+        if lbl is None:
+            return
+        names = self._characters()
+        lbl.configure(text=t("chars_found", ", ".join(names))
+                      if names else t("chars_none"))
+
+    def _characters(self):
+        """Alle vergebenen Figuren in der Reihenfolge des ersten Auftretens."""
+        out = []
+        for c in self.clips:
+            who = (c.get("character") or "").strip()
+            if who and who not in out:
+                out.append(who)
+        return out
 
     def _caption_save(self):
         """Schreibt das Eingabefeld in den Clip, zu dem es geladen wurde."""
@@ -1441,6 +1663,8 @@ class App(tk.Tk):
         self._bg(lambda: self._do_build(name, clips), on_done=self._after_build)
 
     def _do_build(self, name, clips):
+        if self.fmt.get() == "cv":
+            return self._do_build_cv(name, clips)
         captions = {}
         os.makedirs(OUT_DIR, exist_ok=True)
         dest = os.path.join(OUT_DIR, name)
@@ -1497,6 +1721,73 @@ class App(tk.Tk):
         self.built_path = dest
         self._set_status(t("st_built", dest), 100)
 
+    def _do_build_cv(self, name, clips):
+        """Pack im Choicer-Voicer-Format schreiben."""
+        os.makedirs(OUT_DIR, exist_ok=True)
+        dest = os.path.join(OUT_DIR, name)
+        if os.path.exists(dest):
+            shutil.rmtree(dest)
+        os.makedirs(dest)
+        dub = bool(self.is_dub.get())
+        src_audio = self.vocals_path or self.audio_path
+
+        # Ein Bild je Figur - genau so machen es echte Packs.
+        images = {}
+        for who, path in sorted(self.char_images.items()):
+            if who and os.path.isfile(path):
+                fn = pc.safe_name(who, "figur") + ".png"
+                shutil.copy2(path, os.path.join(dest, fn))
+                images[who] = fn
+                self._log("  " + fn)
+
+        total = len(clips)
+        for n, ((nr, who), c) in enumerate(zip(pc.cv_numbering(clips), clips), 1):
+            base = "%02d_%s" % (nr, pc.safe_name(who, "clip"))
+            self._set_status(t("st_clip", n, total), 5 + 60 * n / max(1, total))
+            pc.export_clip(src_audio, c["start"], c["end"],
+                           os.path.join(dest, base + ".wav"))
+            pc.write_cv_meta(
+                os.path.join(dest, base + pc.CV_META_EXT),
+                caption=c.get("caption", ""),
+                image=images.get(who, ""),
+                timestamps=[c["start"]],
+                characters=[who] if who else [])
+            self._log("  %s.wav + %s%s   @ %.3f s"
+                      % (base, base, pc.CV_META_EXT, c["start"]))
+
+        # Pack-Beschreibung
+        icon = ""
+        if self.pack_icon and os.path.isfile(self.pack_icon):
+            icon = "_icon.png"
+            shutil.copy2(self.pack_icon, os.path.join(dest, icon))
+            self._log("  " + icon)
+        authors = [a.strip() for a in self.pack_authors.get().split(",")
+                   if a.strip()]
+        pc.write_pack_info(os.path.join(dest, pc.CV_PACK_INFO),
+                           title=self.pack_title.get().strip() or name,
+                           icon=icon, authors=authors,
+                           readme=self.pack_readme.get().strip(),
+                           characters=self._characters())
+        self._log("  " + pc.CV_PACK_INFO)
+
+        if dub and self.backing_path and os.path.isfile(self.backing_path):
+            self._set_status(t("st_backing"), 68)
+            pc.export_backing_track(self.backing_path,
+                                    os.path.join(dest, "_backing_track.wav"),
+                                    log=self._log)
+            self._log("  _backing_track.wav")
+
+        if dub:
+            # Godot kann nur OGV - ohne dub_video.ogv laedt der Pack nicht.
+            self._set_status(t("st_ogv"), 72)
+            pc.convert_video(self.video_path,
+                             os.path.join(dest, "dub_video.ogv"),
+                             max_height=int(self.vheight.get()), log=self._log)
+            self._log("  dub_video.ogv")
+
+        self.built_path = dest
+        self._set_status(t("st_built", dest), 100)
+
     def _after_build(self):
         path = self.built_path
         if path:
@@ -1542,6 +1833,10 @@ class App(tk.Tk):
             "is_dub": self.is_dub.get(),
             "vheight": self.vheight.get(),
             "target_dir": self.target_dir.get(),
+            "fmt": self.fmt.get(),
+            "pack_title": self.pack_title.get(),
+            "pack_authors": self.pack_authors.get(),
+            "pack_readme": self.pack_readme.get(),
         })
         save_cfg(self.cfg)
 

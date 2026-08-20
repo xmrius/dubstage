@@ -4,6 +4,7 @@ dubforge_core.py  --  Kernlogik fuer DubForge / core logic.
 Keine GUI hier drin, damit sich alles einzeln testen laesst.
 """
 
+import io
 import os
 import re
 import sys
@@ -82,6 +83,9 @@ _MSG = {
     "span": (
         "Zeitspanne: %.2f s",
         "Time span: %.2f s"),
+    "no_frame": (
+        "Konnte kein Einzelbild bei %s s aus dem Video holen.",
+        "Could not grab a still frame at %s s from the video."),
     "dl_section_fail": (
         "Der Ausschnitt-Download ging nicht. Das passiert, wenn ffmpeg die\n"
         "Videodaten selbst holen soll und dabei abgewiesen wird. Ich lade\n"
@@ -695,6 +699,116 @@ def convert_video(video, out_path, max_height=720, quality=20, log=None):
     run([ffmpeg(), "-y", "-hide_banner", "-i", video, "-vf", scale]
         + args + ["-map", "0:v:0", "-map", "0:a:0?", out_path], log=log)
     return out_path
+
+
+def grab_frame(video, seconds, out_png, max_height=480, log=None):
+    """Ein Einzelbild aus dem Video holen - fuer Figurenbilder und Symbole."""
+    scale = "scale=-2:'min(%d,ih)'" % int(max_height)
+    run([ffmpeg(), "-y", "-hide_banner", "-loglevel", "error",
+         "-ss", "%.3f" % max(0.0, float(seconds)), "-i", video,
+         "-frames:v", "1", "-vf", scale, out_png], log=log)
+    if not os.path.isfile(out_png):
+        raise RuntimeError(M("no_frame", "%.3f" % float(seconds)))
+    return out_png
+
+
+# --------------------------------------------------------------------------
+# Choicer-Voicer-Profil / Choicer Voicer export profile
+# --------------------------------------------------------------------------
+#
+# Das Format ist nirgends dokumentiert - diese Umsetzung ist aus einem
+# echten Pack ausgelesen ("You Are A Toy"):
+#   [data], Leerzeile, dann Schluessel; UTF-8, CRLF, KEIN Umbruch am Ende.
+#   Zeitstempel zweistellig aufgefuellt mit drei Nachkommastellen.
+#   Listen ohne Leerzeichen nach dem Komma.
+#   Anfuehrungszeichen im Text sind typografisch - so muss nie maskiert
+#   werden, und genau daran haelt sich der Export.
+
+CV_META_EXT = ".txt"
+CV_PACK_INFO = "_pack_info.ini"
+
+
+def cv_text(text):
+    """Text fuer eine Wertzeile aufbereiten."""
+    s = str(text or "")
+    # Zeilenumbrueche wuerden das zeilenbasierte Format zerreissen.
+    s = re.sub(r"[\r\n\t]+", " ", s)
+    s = "".join(ch for ch in s if ch >= " " or ch == " ")
+    # Gerade Anfuehrungszeichen abwechselnd in typografische wandeln.
+    out, opening = [], True
+    for ch in s:
+        if ch == '"':
+            out.append("“" if opening else "”")
+            opening = not opening
+        else:
+            out.append(ch)
+    return re.sub(r"\s+", " ", "".join(out)).strip()
+
+
+def _cv_str(value):
+    return '"%s"' % cv_text(value)
+
+
+def _cv_list(values):
+    return "[%s]" % ",".join(_cv_str(v) for v in values)
+
+
+def _cv_times(values):
+    return "[%s]" % ",".join("%06.3f" % float(v) for v in values)
+
+
+def _cv_write(path, lines):
+    """CRLF, UTF-8, ohne Umbruch am Ende - so wie das Spiel es schreibt."""
+    with io.open(path, "w", encoding="utf-8", newline="") as f:
+        f.write("\r\n".join(lines))
+    return path
+
+
+def write_cv_meta(path, caption="", image="", timestamps=(), characters=()):
+    """Metadaten einer Sprechzeile schreiben."""
+    lines = ["[data]", ""]
+    if caption:
+        lines.append("caption=%s" % _cv_str(caption))
+    if image:
+        lines.append("image=%s" % _cv_str(image))
+    lines.append("dub_timestamps=%s" % _cv_times(timestamps or []))
+    if characters:
+        lines.append("dub_characters=%s" % _cv_list(characters))
+    return _cv_write(path, lines)
+
+
+def write_pack_info(path, title="", icon="", authors=(), readme="",
+                    characters=()):
+    """_pack_info.ini fuer den Pack schreiben."""
+    lines = ["[data]", ""]
+    if title:
+        lines.append("title=%s" % _cv_str(title))
+    if icon:
+        lines.append("icon=%s" % _cv_str(icon))
+    if authors:
+        lines.append("authors=%s" % _cv_list(authors))
+    if readme:
+        lines.append("readme=%s" % _cv_str(readme))
+    if characters:
+        lines.append("preselected_dub_characters=%s" % _cv_list(characters))
+    return _cv_write(path, lines)
+
+
+def cv_numbering(clips):
+    """
+    Nummeriert je Figur durch, nicht ueber die ganze Szene.
+
+    In echten Packs ist 06_woody spaeter als 06_buzz - die Nummer ordnet
+    innerhalb einer Figur, die Reihenfolge in der Szene steckt allein in
+    den Zeitstempeln.
+    """
+    seen = {}
+    out = []
+    for c in clips:
+        who = (c.get("character") or c.get("name") or "clip").strip()
+        seen[who] = seen.get(who, 0) + 1
+        out.append((seen[who], who))
+    return out
 
 
 # --------------------------------------------------------------------------

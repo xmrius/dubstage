@@ -9,6 +9,39 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 Nothing yet.
 
+## [1.2.0] - 2026-08-20
+
+### Added
+
+- **Two export formats, selectable at the top of the window.** DubStage as
+  before, or **The Choicer Voicer**. The choice changes what the interface
+  offers: the CV profile adds a character per clip, an image per character and
+  the pack description; the DubStage profile stays exactly as it was.
+- **Choicer Voicer export**: one `.txt` per line beside its audio, plus
+  `_pack_info.ini`, and the video as OGV — Godot reads nothing else, so a pack
+  without `dub_video.ogv` does not load at all.
+- **Character images straight from the scene.** Select a clip, type the
+  character, press "Grab image": DubForge pulls a still frame from the video at
+  that moment and assigns it to that character, with a thumbnail next to the
+  field. The pack icon works the same way. Real packs use one image per speaker
+  rather than one per line, and the export follows that.
+- Numbering in the CV profile runs **per character**, not across the scene —
+  `06_woody` may well sit later than `06_buzz`. The order within the scene comes
+  from the timestamps alone, which is how the game reads it.
+
+### Notes on the format
+
+The `.txt` format is not documented anywhere; the official route is the editor
+inside the game. This implementation was read out of a working pack and verified
+against it: all twenty metadata files and the `_pack_info.ini` of that pack are
+reproduced byte for byte. UTF-8, CRLF, no newline at the end of the file,
+timestamps padded to two digits with three decimals, lists without a space after
+the comma.
+
+Captions never need escaping because real packs use typographic quotation marks
+inside the straight ones. The export does the same: straight quotes in a subtitle
+are converted, so the question of how the game escapes a `"` never arises.
+
 ## [1.1.0] - 2026-08-15
 
 ### Added
@@ -169,7 +202,8 @@ switchable at runtime.
   clip lengths it lands one sample short, which previously raised mid-playback
   and froze the interface.
 
-[Unreleased]: https://github.com/xmrius/dubstage/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/xmrius/dubstage/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/xmrius/dubstage/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/xmrius/dubstage/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/xmrius/dubstage/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/xmrius/dubstage/releases/tag/v1.0.0

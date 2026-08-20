@@ -53,6 +53,17 @@ DubStage   →  pick the pack, record line by line, "Done"
 
 Packs land in `packs/` next to the tools, which is exactly where DubStage looks.
 
+## Export formats
+
+At the top of DubForge you choose what the pack is for:
+
+- **DubStage** — start time in the file name, subtitles in `_captions.json`,
+  video as MP4.
+- **The Choicer Voicer** — one `.txt` per line next to its audio, one image per
+  character, `_pack_info.ini`, video as OGV. The interface then also asks for a
+  character per clip and can pull that character's image straight out of the
+  scene.
+
 ## What a pack looks like
 
 ```
