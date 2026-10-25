@@ -469,6 +469,8 @@ class Mic(object):
         self._env = []                                  # Spitzenwerte je Fenster
         self._env_step = max(1, int(sr * ENV_MS / 1000.0))
         self._buf = np.zeros(0, dtype=np.float32)
+        self._total = 0
+        self._mark = None
 
     @property
     def available(self):
@@ -483,11 +485,22 @@ class Mic(object):
                 out.append((i, d.get("name", "?")))
         return out
 
-    def start(self, playback=None, device=None):
-        """playback: Float-Array, das waehrend der Aufnahme laufen soll."""
+    def arm(self, device=None):
+        """
+        Mikrofon oeffnen, ohne schon aufzunehmen - waehrend des Countdowns.
+
+        Viele Geraete (USB, vor allem Bluetooth) liefern nach dem Oeffnen
+        einige hundert Millisekunden lang Stille oder einen Anlauf, Bluetooth
+        schaltet dabei ausserdem das Profil um. Passiert das erst beim
+        Aufnahmestart, fehlt der Anfang der Zeile. Vorab geoeffnet ist das
+        Geraet warm, wenn begin() die Startmarke setzt.
+        """
         if not self.sd:
             raise RuntimeError("sounddevice fehlt / missing")
+        self._close()
         self._chunks = []
+        self._total = 0               # bisher empfangene Samples
+        self._mark = None             # Index des ersten Samples der Aufnahme
         self._env = []
         self._env_step = max(1, int(self.sr * ENV_MS / 1000.0))
         self._buf = np.zeros(0, dtype=np.float32)
@@ -495,8 +508,14 @@ class Mic(object):
         def cb(indata, frames, time_info, status):
             data = np.asarray(indata[:, 0], dtype=np.float32).copy()
             self._chunks.append(data)
-            # Spitzenwert je 20-ms-Fenster mitschreiben, damit die
-            # Oberflaeche die Aufnahme live zeichnen kann.
+            first = self._total
+            self._total += len(data)
+            mark = self._mark
+            if mark is None or self._total <= mark:
+                return
+            # Spitzenwert je 20-ms-Fenster ab der Startmarke mitschreiben,
+            # damit die Oberflaeche die Aufnahme live zeichnen kann.
+            data = data[max(0, mark - first):]
             buf = data if not len(self._buf) else \
                 np.concatenate([self._buf, data])
             step = self._env_step
@@ -513,13 +532,39 @@ class Mic(object):
             kwargs["device"] = device
         self._stream = self.sd.InputStream(**kwargs)
         self._stream.start()
+
+    @property
+    def armed(self):
+        return self._stream is not None
+
+    def begin(self, playback=None):
+        """
+        Ab jetzt zaehlt die Aufnahme. playback: Float-Array, das dabei laufen
+        soll (Backing Track).
+
+        Was der Treiber gerade noch puffert, wurde vor diesem Moment
+        aufgenommen - die Eingangslatenz wird deshalb uebersprungen, sonst
+        laege die Aufnahme um genau diese Zeit zu spaet.
+        """
+        if self._stream is None:
+            raise RuntimeError("Mikrofon nicht bereit / microphone not armed")
+        try:
+            latency = float(self._stream.latency)
+        except Exception:
+            latency = 0.0
+        self._mark = self._total + int(round(max(0.0, latency) * self.sr))
         if playback is not None and len(playback):
             try:
                 self.sd.play(np.asarray(playback, dtype=np.float32), self.sr)
             except Exception:
                 pass
 
-    def stop(self):
+    def start(self, playback=None, device=None):
+        """Oeffnen und sofort aufnehmen - fuer den Mikrofontest."""
+        self.arm(device=device)
+        self.begin(playback=playback)
+
+    def _close(self):
         if self._stream is not None:
             try:
                 self._stream.stop()
@@ -527,14 +572,22 @@ class Mic(object):
             except Exception:
                 pass
             self._stream = None
+
+    def stop(self):
+        """Aufnahme beenden, Mikrofon schliessen, Samples ab der Marke."""
+        self._close()
         try:
             if self.sd:
                 self.sd.stop()
         except Exception:
             pass
-        if not self._chunks:
+        mark = self._mark
+        chunks, self._chunks = self._chunks, []
+        self._mark = None
+        if mark is None or not chunks:
             return np.zeros(0, dtype=np.float32)
-        return np.concatenate(self._chunks).astype(np.float32)
+        data = np.concatenate(chunks).astype(np.float32)
+        return data[min(mark, len(data)):]
 
     def envelope(self):
         """Bisher aufgenommene Huellkurve und ihre Schrittweite in Sekunden."""

@@ -9,6 +9,20 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 Nothing yet.
 
+## [1.3.1] - 2026-10-25
+
+### Fixed
+
+- **The first half second of a recording was missing.** Three delays added up:
+  recording started 300 ms after "Go!" appeared, the microphone was only
+  opened at that moment — and many devices, USB and especially Bluetooth
+  headsets, deliver silence for a few hundred milliseconds after opening,
+  while Bluetooth also switches profiles and briefly cuts the sound — and the
+  driver's input latency was not accounted for. DubStage now opens the
+  microphone when the countdown starts, so the device is warm by the time it
+  matters, starts recording and video exactly on "Go!", and skips the samples
+  still buffered in the driver so the take lines up with the picture.
+
 ## [1.3.0] - 2026-09-28
 
 ### Added
@@ -299,7 +313,8 @@ switchable at runtime.
   clip lengths it lands one sample short, which previously raised mid-playback
   and froze the interface.
 
-[Unreleased]: https://github.com/xmrius/dubstage/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/xmrius/dubstage/compare/v1.3.1...HEAD
+[1.3.1]: https://github.com/xmrius/dubstage/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/xmrius/dubstage/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/xmrius/dubstage/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/xmrius/dubstage/compare/v1.1.0...v1.2.0
