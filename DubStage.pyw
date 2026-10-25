@@ -1395,6 +1395,13 @@ class Game(tk.Tk):
             self.mic.stop_play()
         except Exception:
             pass
+        # Ein noch offenes Mikrofon (Countdown abgebrochen, Runde verlassen)
+        # wieder schliessen.
+        try:
+            if self.mic.armed:
+                self.mic.stop()
+        except Exception:
+            pass
 
     # ------------------------------------------------ Phasen mit Notausgang
     def _set_phase(self, name, expected=0.0):
@@ -1482,7 +1489,15 @@ class Game(tk.Tk):
         line = self.current_line()
         if line is None or self.phase != "idle":
             return
-        self._set_phase("countdown", 3.0)
+        # Mikrofon schon jetzt oeffnen: Anlauf und Profilwechsel (Bluetooth)
+        # fallen in den Countdown statt in den Anfang der Zeile.
+        try:
+            self.mic.arm(device=self._mic_device())
+        except Exception as ex:
+            self._force_idle()
+            messagebox.showerror(t("err"), str(ex))
+            return
+        self._set_phase("countdown", 4.0)
         self.sync()
         self._count = 3
         self._countdown()
@@ -1505,7 +1520,9 @@ class Game(tk.Tk):
             self._count -= 1
             self.after(650, self._countdown)
         else:
-            self.after(300, self._begin_record)
+            # Bei "Los" geht es los - nicht erst 300 ms spaeter. Wer auf das
+            # Signal hin anfaengt zu sprechen, verlor sonst genau diesen Teil.
+            self._begin_record()
 
     def _begin_record(self):
         if self.phase != "countdown":
@@ -1516,7 +1533,9 @@ class Game(tk.Tk):
         if getattr(self.pack, "backing_audio", None) is not None:
             playback = ds.slice_audio(self.pack.backing_audio, line.start, dur)
         try:
-            self.mic.start(playback=playback, device=self._mic_device())
+            if not self.mic.armed:
+                self.mic.arm(device=self._mic_device())
+            self.mic.begin(playback=playback)
         except Exception as ex:
             self._force_idle()
             messagebox.showerror(t("err"), str(ex))
@@ -1524,15 +1543,23 @@ class Game(tk.Tk):
         self._set_phase("record", dur)
         self._rec_done = False
         try:
-            self._overlay(t("recording"), RED, 34)
             self.sync()
         except Exception:
             traceback.print_exc()
+        # "Los" noch kurz stehen lassen, dann die kleine REC-Plakette.
+        self.after(450, self._show_rec_badge)
         self._play_from(line.start, dur, self._finish_record)
         # Sicherheitsnetz: beendet die Aufnahme auch, wenn die Bildschleife
         # aus irgendeinem Grund nicht bis zum Ende kommt.
         self._rec_guard = self.after(int(dur * 1000) + 500,
                                      self._finish_record)
+
+    def _show_rec_badge(self):
+        if self.phase == "record" and self.screen == "stage":
+            try:
+                self._overlay(t("recording"), RED, 34)
+            except Exception:
+                traceback.print_exc()
 
     def _finish_record(self):
         if self._rec_done:
