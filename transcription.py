@@ -19,6 +19,19 @@ MODELS = ("large-v3", "turbo", "small")
 LANGUAGES = ("fr", "en", "de", "es", "it", "pt", "he", "ar", "ja", "zh", "ko", "ru", "uk")
 
 
+def _decode(media):
+    """Mono float32 at 16 kHz, decoded with the app's own ffmpeg.
+
+    faster-whisper's decode_audio goes through PyAV, whose API changes under
+    it (PyAV 19 dropped an argument decode_audio still passes); ffmpeg is
+    already required by both apps and stable here.
+    """
+    import numpy as np
+    import dubforge_core as pc
+    data, _sr = pc.load_mono(str(media), sr=16000)
+    return np.asarray(data, dtype=np.float32)
+
+
 def prepare_audio(media):
     """Decode once at Whisper's sample rate; gently boost quiet inputs for VAD.
 
@@ -26,8 +39,7 @@ def prepare_audio(media):
     Exact silence is left alone.
     """
     import numpy as np
-    from faster_whisper.audio import decode_audio
-    audio = decode_audio(str(media), sampling_rate=16000)
+    audio = _decode(media)
     if len(audio):
         peak = float(np.max(np.abs(audio)))
         if 0 < peak < 0.95:

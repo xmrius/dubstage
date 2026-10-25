@@ -36,7 +36,7 @@ from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 # ------------------------------------------------------------------ Eckdaten
-VERSION = "1.3.1"
+VERSION = "1.3.2"
 REPO = "xmrius/dubstage"
 
 API_LATEST = "https://api.github.com/repos/%s/releases/latest" % REPO

@@ -1,2 +1,5 @@
 # Optional: needed only for automatic captions. Models download on first use.
 faster-whisper>=1.2.1,<2
+# PyAV 19 dropped an argument faster-whisper 1.2.1 still passes. DubStage
+# decodes with ffmpeg itself, but faster-whisper imports av - stay on 18.
+av>=11,<19

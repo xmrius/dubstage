@@ -10,7 +10,10 @@ on:
     # Nur Branches: auf einem Release-Tag gibt es keinen Branch, auf den die
     # Bilder zurueck koennten.
     branches: ["**"]
-    paths: ["dev/screenshots.py", ".github/workflows/screenshots.yml"]
+    # Auch bei der Spracherkennung: dieser Lauf transkribiert eine echte Szene
+    # unter Windows und ist damit ihr Test von Anfang bis Ende.
+    paths: ["dev/screenshots.py", ".github/workflows/screenshots.yml",
+            "transcription.py", "requirements-transcription.txt"]
   workflow_dispatch:
     inputs:
       start:
