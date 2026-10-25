@@ -7,6 +7,9 @@ on:
   # Laeuft von selbst, wenn sich das Skript aendert - workflow_dispatch geht
   # erst, wenn diese Datei auf dem Standard-Branch liegt.
   push:
+    # Nur Branches: auf einem Release-Tag gibt es keinen Branch, auf den die
+    # Bilder zurueck koennten.
+    branches: ["**"]
     paths: ["dev/screenshots.py", ".github/workflows/screenshots.yml"]
   workflow_dispatch:
     inputs:
