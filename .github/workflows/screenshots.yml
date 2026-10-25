@@ -7,7 +7,13 @@ on:
   # Laeuft von selbst, wenn sich das Skript aendert - workflow_dispatch geht
   # erst, wenn diese Datei auf dem Standard-Branch liegt.
   push:
-    paths: ["dev/screenshots.py", ".github/workflows/screenshots.yml"]
+    # Nur Branches: auf einem Release-Tag gibt es keinen Branch, auf den die
+    # Bilder zurueck koennten.
+    branches: ["**"]
+    # Auch bei der Spracherkennung: dieser Lauf transkribiert eine echte Szene
+    # unter Windows und ist damit ihr Test von Anfang bis Ende.
+    paths: ["dev/screenshots.py", ".github/workflows/screenshots.yml",
+            "transcription.py", "requirements-transcription.txt"]
   workflow_dispatch:
     inputs:
       start:

@@ -9,6 +9,16 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 Nothing yet.
 
+## [1.3.2] - 2026-10-25
+
+### Fixed
+
+- **Automatic captions failed on new installs** with "open() got an
+  unexpected keyword argument 'metadata_errors'". PyAV 19, released on
+  29 September, dropped an argument that faster-whisper still passes when it
+  reads the audio. DubForge now decodes the audio with its own ffmpeg, and
+  `requirements-transcription.txt` keeps PyAV below 19.
+
 ## [1.3.1] - 2026-10-25
 
 ### Fixed
@@ -313,7 +323,8 @@ switchable at runtime.
   clip lengths it lands one sample short, which previously raised mid-playback
   and froze the interface.
 
-[Unreleased]: https://github.com/xmrius/dubstage/compare/v1.3.1...HEAD
+[Unreleased]: https://github.com/xmrius/dubstage/compare/v1.3.2...HEAD
+[1.3.2]: https://github.com/xmrius/dubstage/compare/v1.3.1...v1.3.2
 [1.3.1]: https://github.com/xmrius/dubstage/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/xmrius/dubstage/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/xmrius/dubstage/compare/v1.2.0...v1.2.1

@@ -132,10 +132,10 @@ class EngineTests(unittest.TestCase):
     def test_quiet_audio_gain_is_bounded_and_preserves_sample_positions(self):
         import numpy as np
         decode = Mock(return_value=np.array([0., .01, -.01, 0.], dtype=np.float32))
-        with patch.dict(sys.modules, {"faster_whisper.audio": types.SimpleNamespace(decode_audio=decode)}):
+        with patch.object(tr, "_decode", decode):
             boosted = tr.prepare_audio("quiet.wav")
             np.testing.assert_allclose(boosted, [0, .1, -.1, 0])
-            decode.assert_called_once_with("quiet.wav", sampling_rate=16000)
+            decode.assert_called_once_with("quiet.wav")
             decode.return_value = np.zeros(4, dtype=np.float32)
             np.testing.assert_array_equal(tr.prepare_audio("silent.wav"), np.zeros(4))
 
